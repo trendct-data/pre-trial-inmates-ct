@@ -1,0 +1,28 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1469626204373.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "3433998E",
+    "lastKnownWriteTime" : 8101746182669820463,
+    "last_content_update" : 1469626204373,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "9gzu0r6jil",
+        "caption" : "total_day_race",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=total_day_race&cache_key=9gzu0r6jil",
+        "displayedObservations" : 19,
+        "environment" : "",
+        "object" : "total_day_race",
+        "totalObservations" : 19,
+        "variables" : 6
+    },
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}
