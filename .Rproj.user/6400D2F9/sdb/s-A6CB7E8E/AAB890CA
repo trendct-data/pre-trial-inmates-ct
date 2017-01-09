@@ -1,0 +1,20 @@
+{
+    "collab_server" : "",
+    "contents" : "update <- read.csv(\"https://data.ct.gov/api/views/b674-jy6w/rows.csv\")\n\ndate <- tail(update$DOWNLOAD.DATE,n=1)\ndate <- gsub(\"/\", \"\", date)\n\nfilename <- paste0(\"data/file\", date, \".csv\" )\nwrite.csv(update, filename)",
+    "created" : 1469107716633.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "2521732556",
+    "id" : "AAB890CA",
+    "lastKnownWriteTime" : 1468978198,
+    "last_content_update" : 1468978198,
+    "path" : "~/Documents/Github/trendct-data/2016/07/pre-trial-inmates-ct/dailydownload.R",
+    "project_path" : "dailydownload.R",
+    "properties" : {
+    },
+    "relative_order" : 2,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
