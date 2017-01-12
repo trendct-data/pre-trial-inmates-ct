@@ -1,0 +1,793 @@
+---
+title: "Pre-trial jail inmates in Connecticut analysis"
+author: "Andrew Ba Tran"
+date: "January 9, 2017"
+output: html_document
+---
+
+# Some charts
+ *[x] Fix annotation locations
+ *[x] Start total numbers from zero
+ *[x] Get per capita based on race via Census
+ *[x] Histogram of bail amounts
+ *[ ] Map of facilities with circles on how many there are
+ *[ ] Chart out bond amount by race
+ *[ ] Correlation between bail and length of time in jail
+ *[ ] Visualize the comingss and goings and those left behind...
+ 
+ 
+ 
+```{r libraries, warning=F, message=F}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(knitr)
+library(ggalt)
+library(extrafont)
+library(grid)
+library(gridExtra)
+library(stringr)
+library(DT)
+```
+
+```{r data_ingesting, warning=FALSE}
+update <- read.csv("https://data.ct.gov/api/views/b674-jy6w/rows.csv")
+```
+
+
+```{r race_date_total, fig.width=9, fig.height=6}
+# by date, race total
+race_total_date <- update %>%
+  group_by(DOWNLOAD.DATE, RACE) %>%
+  summarise(total=n()) %>%
+  filter(RACE=="BLACK" | RACE=="HISPANIC" | RACE=="WHITE")
+
+race_total_date$DOWNLOAD.DATE <- mdy(race_total_date$DOWNLOAD.DATE)
+
+
+black_last <- race_total_date %>%
+  filter(RACE=="BLACK") 
+black_last$DOWNLOAD.DATE <-ymd(black_last$DOWNLOAD.DATE)
+black_last <- arrange(black_last, desc(DOWNLOAD.DATE))
+black_last <- black_last$total[1]
+
+
+white_last <- race_total_date %>%
+  filter(RACE=="WHITE") 
+white_last$DOWNLOAD.DATE <-ymd(white_last$DOWNLOAD.DATE)
+white_last <- arrange(white_last, desc(DOWNLOAD.DATE))
+white_last <- white_last$total[1]
+
+hispanic_last <- race_total_date %>%
+  filter(RACE=="HISPANIC") 
+hispanic_last$DOWNLOAD.DATE <-ymd(hispanic_last$DOWNLOAD.DATE)
+hispanic_last <- arrange(hispanic_last, desc(DOWNLOAD.DATE))
+hispanic_last <- hispanic_last$total[1]
+
+
+gg <- ggplot(race_total_date, aes(x=DOWNLOAD.DATE, y=total, group=RACE, color=RACE)) + geom_line()
+gg <- gg + labs(x=NULL, y="Inmates", title=paste("Accused pre-trial inmates in Connecticut jails"),
+                caption="SOURCE: Department of Corrections\nAndrew Ba Tran/TrendCT.org")
+gg <- gg + theme_bw(base_family="Calibri")
+#gg <- gg + theme(panel.grid.major=element_blank())
+#gg <- gg + theme(panel.grid.minor=element_blank())
+gg <- gg + theme(panel.border=element_blank())
+gg <- gg + theme(text = element_text(size=10))
+#gg <- gg + theme(axis.ticks=element_blank())
+#gg <- gg + theme(axis.text.x=element_blank())
+gg <- gg + theme(plot.title=element_text(face="bold", family="Lato Black", size=22))
+gg <- gg + theme(plot.subtitle=element_text(face="italic", size=9, margin=margin(b=12)))
+gg <- gg + theme(plot.caption=element_text(size=12, margin=margin(t=10, r=80), color="#7a7d7e"))
+gg <- gg + geom_label(data=race_total_date, aes(x=max(ymd(DOWNLOAD.DATE))+2, y=black_last, label=paste0("Black (", black_last,")"), hjust=0),
+                      family="Helvetica", lineheight=0.95,
+                      size=4.5, label.size=0, color="black")
+gg <- gg + geom_label(data=race_total_date, aes(x=max(ymd(DOWNLOAD.DATE))+2, y=hispanic_last, label=paste0("Hispanic (", hispanic_last,")"), hjust=0),
+                     family="Helvetica", lineheight=0.95,
+                      size=4.5, label.size=0, color="black")
+gg <- gg + geom_label(data=race_total_date, aes(x=max(ymd(DOWNLOAD.DATE))+2, y=white_last, label=paste0("White (", white_last,")"), hjust=0),
+                      family="Helvetica", lineheight=0.95,
+                      size=4.5, label.size=0, color="black")
+gg <- gg + theme(legend.position="none")
+gg <- gg + theme(plot.margin = unit(c(1, 10, 1, 1), "lines"))
+gg
+
+gb <- ggplot_build(gg)
+gt <- ggplot_gtable(gb)
+
+gt$layout$clip[gt$layout$name=="panel"] <- "off"
+grid.draw(gt)
+# ggsave(gt, file = "race_totals_time.png", width = 8, height = 6, type = "cairo-png")
+
+## Ok now from zero
+
+black_first <- filter(race_total_date, RACE=="BLACK" & DOWNLOAD.DATE=="2016-07-01")
+black_first <- black_first$total
+white_first <- filter(race_total_date, RACE=="WHITE" & DOWNLOAD.DATE=="2016-07-01")
+white_first <- white_first$total
+hispanic_first <- filter(race_total_date, RACE=="HISPANIC" & DOWNLOAD.DATE=="2016-07-01")
+hispanic_first <- hispanic_first$total
+
+
+race_total_date_adjusted <- race_total_date
+race_total_date_adjusted$total <- ifelse(race_total_date_adjusted$RACE=="BLACK", race_total_date_adjusted$total-black_first, race_total_date_adjusted$total)
+race_total_date_adjusted$total <- ifelse(race_total_date_adjusted$RACE=="HISPANIC", race_total_date_adjusted$total-hispanic_first, race_total_date_adjusted$total)
+race_total_date_adjusted$total <- ifelse(race_total_date_adjusted$RACE=="WHITE", race_total_date_adjusted$total-white_first, race_total_date_adjusted$total)
+
+
+black_last_adj <- race_total_date_adjusted %>%
+  filter(RACE=="BLACK") 
+black_last_adj$DOWNLOAD.DATE <-ymd(black_last_adj$DOWNLOAD.DATE)
+black_last_adj <- arrange(black_last_adj, desc(DOWNLOAD.DATE))
+black_last_adj <- black_last_adj$total[1]
+
+
+white_last_adj <- race_total_date_adjusted %>%
+  filter(RACE=="WHITE") 
+white_last_adj$DOWNLOAD.DATE <-ymd(white_last_adj$DOWNLOAD.DATE)
+white_last_adj <- arrange(white_last_adj, desc(DOWNLOAD.DATE))
+white_last_adj <- white_last_adj$total[1]
+
+hispanic_last_adj <- race_total_date_adjusted %>%
+  filter(RACE=="HISPANIC") 
+hispanic_last_adj$DOWNLOAD.DATE <-ymd(hispanic_last_adj$DOWNLOAD.DATE)
+hispanic_last_adj <- arrange(hispanic_last_adj, desc(DOWNLOAD.DATE))
+hispanic_last_adj <- hispanic_last_adj$total[1]
+
+gg <- ggplot(race_total_date_adjusted, aes(x=DOWNLOAD.DATE, y=total, group=RACE, color=RACE)) + geom_line()
+gg <- gg + labs(x=NULL, y="Inmates", title=paste("Accused pre-trial inmates in Connecticut jails since July 2016"),
+                caption="SOURCE: Department of Corrections\nAndrew Ba Tran/TrendCT.org")
+gg <- gg + theme_bw(base_family="Calibri")
+gg <- gg + theme(panel.border=element_blank())
+gg <- gg + theme(text = element_text(size=10))
+gg <- gg + theme(plot.title=element_text(face="bold", family="Lato Black", size=22))
+gg <- gg + theme(plot.subtitle=element_text(face="italic", size=9, margin=margin(b=12)))
+gg <- gg + theme(plot.caption=element_text(size=12, margin=margin(t=10, r=80), color="#7a7d7e"))
+gg <- gg + geom_label(data=race_total_date_adjusted, aes(x=max(ymd(DOWNLOAD.DATE))+2, y=black_last_adj, label=paste0("Black (", black_last_adj, ")"), hjust=0),
+                      family="Helvetica", lineheight=0.95,
+                      size=4.5, label.size=0, color="black")
+gg <- gg + geom_label(data=race_total_date_adjusted, aes(x=max(ymd(DOWNLOAD.DATE))+2, y=hispanic_last_adj, label=paste0("Hispanic (", hispanic_last_adj, ")"), hjust=0),
+                      family="Helvetica", lineheight=0.95,
+                      size=4.5, label.size=0, color="black")
+gg <- gg + geom_label(data=race_total_date_adjusted, aes(x=max(ymd(DOWNLOAD.DATE))+2, y=white_last_adj, label=paste0("White (", white_last_adj, ")"), hjust=0),
+                      family="Helvetica", lineheight=0.95,
+                      size=4.5, label.size=0, color="black")
+gg <- gg + theme(legend.position="none")
+gg <- gg + theme(plot.margin = unit(c(1, 10, 1, 1), "lines"))
+gg
+
+gb <- ggplot_build(gg)
+gt <- ggplot_gtable(gb)
+
+gt$layout$clip[gt$layout$name=="panel"] <- "off"
+grid.draw(gt)
+
+# NEXT
+
+race_total_date$RACE <- gsub(" ", ".", race_total_date$RACE)
+
+race_total_date <- update %>%
+  group_by(DOWNLOAD.DATE, RACE) %>%
+  summarise(total=n()) %>%
+  spread(RACE, total) %>%
+  mutate(total = `AMER IND` + ASIAN + BLACK + HISPANIC + WHITE) %>%
+  mutate(American.Indian.per = round(`AMER IND`/total*100,2), Asian.per = round(ASIAN/total*100,2), Black.per = round(BLACK/total*100,2), Hispanic.per = round(HISPANIC/total*100,2), White.per = round(WHITE/total*100,2)) %>%
+  select(DOWNLOAD.DATE, American.Indian.per, Asian.per, Black.per, Hispanic.per, White.per) %>%
+  gather(Race, Percent, 2:6)
+
+race_total_date$Race <- gsub(".per", "", race_total_date$Race)
+race_total_date <- filter(race_total_date, Race!="American.Indian")
+
+# Getting Census stats
+library("censusapi")
+source("keys.R")
+
+# Black 
+# B02001_003E
+# White
+# B02001_002E
+# Hispanic
+
+# Asian
+# B02001_005E
+# Total
+# B02001_001E
+#B03001_001E
+#B03002_001E
+#Not hispanic, white
+# Total B03002_001E
+# White B03002_003E
+# Black B03002_004E
+# Asian B03002_006E
+# Hispanic B03002_012E
+
+
+
+
+race2015 <- getCensus(name="acs5", 
+    vintage=2015,
+    key=census_key, 
+    vars=c("NAME", "B03002_001E", "B03002_003E",
+    "B03002_004E", "B03002_006E", "B03002_012E"), 
+    region="state:*")
+
+race2015 <- filter(race2015, state=="09")
+
+colnames(race2015) <- c("state", "id", "total", "White", "Black", "Asian", "Hispanic")
+
+race2015_per <- race2015
+race2015_per$White <- round(race2015$White/race2015$total*100,2)
+race2015_per$Black <- round(race2015$Black/race2015$total*100,2)
+race2015_per$Asian <- round(race2015$Asian/race2015$total*100,2)
+race2015_per$Hispanic <- round(race2015$Hispanic/race2015$total*100,2)
+
+race2015_per <- gather(race2015_per, "Race", "per", 4:7) %>%
+  select(Race, per)
+```
+
+```{r makeup, fig.width=11, fig.height=6}
+gg <- ggplot(race_total_date, aes(x=mdy(DOWNLOAD.DATE), y=Percent)) + geom_bar(stat="identity") + facet_grid(.~Race) 
+gg <- gg + geom_hline(data = race2015_per, aes(yintercept = per, color="red"))
+gg <- gg + scale_color_discrete(name="Percent", labels="State resident population")
+gg <- gg + labs(x=NULL, y="Percent", title=paste("Racial makeup of accused pre-trial inmates"),
+                subtitle="Compared to overall demographic makeup of the state. Gaps in data indicate when the state did not update their daily feed",
+                caption="SOURCE: Department of Corrections\nAndrew Ba Tran/TrendCT.org")
+gg <- gg + theme_bw(base_family="Calibri")
+gg <- gg + theme(text = element_text(size=16))
+gg <- gg + theme(panel.border=element_blank())
+gg <- gg + theme(plot.title=element_text(face="bold", family="Lato Black", size=22))
+gg <- gg + theme(plot.subtitle=element_text(face="italic", size=9, margin=margin(b=12)))
+gg <- gg + theme(plot.caption=element_text(size=12, margin=margin(t=10, r=80), color="#7a7d7e"))
+gg <- gg + theme(plot.margin = unit(c(1, 5, 1, 10), "lines"))
+
+gg
+#ggsave(gg, file = "race_percent_time.png", width = 8, height = 6, type = "cairo-png")
+
+
+## percent makeup compared to state stats
+
+
+## per capita adjustment
+
+```
+
+```{r per_capita, fig.width=9, fig.height=6}
+
+asian_r15 <- race2015$Asian
+black_r15 <- race2015$Black
+hispanic_r15 <- race2015$Hispanic
+white_r15 <- race2015$White
+
+race_total_date2 <- update %>%
+  group_by(DOWNLOAD.DATE, RACE) %>%
+  summarise(total=n()) %>%
+  spread(RACE, total) %>%
+  mutate(total = `AMER IND` + ASIAN + BLACK + HISPANIC + WHITE) %>%
+  select(DOWNLOAD.DATE, ASIAN, BLACK, HISPANIC, WHITE) %>%
+  mutate(ASIAN=ASIAN/asian_r15*10000, BLACK=BLACK/black_r15*10000, HISPANIC=HISPANIC/hispanic_r15*10000, WHITE=WHITE/white_r15*10000) %>%
+  select(DOWNLOAD.DATE, ASIAN, BLACK, HISPANIC, WHITE) %>%
+  gather("Race", "Per.Capita", 2:5) 
+
+race_total_date2$Race <- str_to_title(race_total_date2$Race)
+
+
+gg <- ggplot(race_total_date2, aes(x=mdy(DOWNLOAD.DATE), y=Per.Capita)) + geom_bar(stat="identity") + facet_grid(.~Race) 
+gg <- gg + labs(x=NULL, y="Per 10,000 residents", title=paste("Racial makeup of accused pre-trial inmates."),
+                subtitle="Normalized for demographic population.",
+                caption="SOURCE: Department of Corrections\nAndrew Ba Tran/TrendCT.org")
+gg <- gg + theme_bw(base_family="Calibri")
+gg <- gg + theme(text = element_text(size=16))
+gg <- gg + theme(panel.border=element_blank())
+gg <- gg + theme(plot.title=element_text(face="bold", family="Lato Black", size=22))
+gg <- gg + theme(plot.subtitle=element_text(face="italic", size=9, margin=margin(b=12)))
+gg <- gg + theme(plot.caption=element_text(size=12, margin=margin(t=10, r=80), color="#7a7d7e"))
+gg <- gg + theme(plot.margin = unit(c(1, 5, 1, 10), "lines"))
+
+gg
+
+
+```
+
+```{r gender}
+female_total <- update %>%
+  group_by(DOWNLOAD.DATE, GENDER) %>%
+  summarise(total=n()) %>%
+  spread(GENDER, total) 
+
+avg_females <- round(mean(female_total$F),0)
+avg_males <- round(mean(female_total$M),0)
+
+#round(avg_females/(avg_females+avg_males)*100)
+
+median_females <- round(median(female_total$F),0)
+median_males <- round(median(female_total$M),0)
+```
+
+Histogram of bail amounts by race
+
+```{r histogram_bails, fig.width=9, fig.height=6}
+
+bail_df <- update[!duplicated(update$IDENTIFIER), ]
+
+#ggplot(data=bail_df, aes(BOND.AMOUNT)) + geom_histogram(bins = 500) + facet_grid(RACE~.)
+
+#bail_df_upper <- subset(bail_df, BOND.AMOUNT >=100000)  
+#bail_df_lower <- subset(bail_df, BOND.AMOUNT <100000)  
+
+#ggplot(data=bail_df_upper, aes(BOND.AMOUNT)) + geom_histogram(bins = 500) + facet_grid(RACE~.)
+#ggplot(data=bail_df_lower, aes(BOND.AMOUNT)) + geom_histogram(binwidth = 500) + facet_grid(RACE~.)
+
+
+#range(bail_df$BOND.AMOUNT)
+
+```
+
+# Where pre-trial inmates are currently being held 
+```{r where, fig.width=9, fig.height=6}
+
+library(leaflet)
+library(ggmap)
+
+addresses <- read.csv("facilities.csv", stringsAsFactors=F)
+
+bail_df <- update[!duplicated(update$IDENTIFIER), ]
+
+bail_df$DOWNLOAD.DATE <- mdy(bail_df$DOWNLOAD.DATE)
+bail_df <- arrange(bail_df, desc(DOWNLOAD.DATE))
+last_day <- bail_df$DOWNLOAD.DATE[1]
+
+last_day_df <- subset(update, mdy(DOWNLOAD.DATE)==last_day)
+
+locations <- last_day_df %>%
+  group_by(FACILITY) %>%
+  summarise(total=sum(n())) %>%
+  left_join(addresses)
+
+# This function geocodes a location (find latitude and longitude) using the Google Maps API
+geo <- geocode(location = locations$Address, output="latlon", source="google")
+
+# add those coordinates to our dataset
+locations$lon <- geo$lon
+locations$lat <- geo$lat
+
+m <- leaflet(locations) %>% addTiles('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', 
+	attribution='Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>') 
+m %>% setView(-72.690940, 41.651426, zoom = 8)
+m %>% addCircles(~lon, ~lat, popup=locations$total, weight = 3, radius=locations$total/20*3.14, 
+                 color="#ffa500", stroke = TRUE, fillOpacity = 0.8) 
+m
+
+```
+
+### Men and women in jail awaiting trial
+
+**Average number of women:** `r avg_females`
+
+**Average number of men:** `r avg_males`
+
+**Median number of women:** `r median_females`
+
+**Median number of men:** `r median_males`
+
+```{r females_race, fig.width=9, fig.height=6}
+female_total <- update %>%
+  filter(GENDER=="F") %>%
+  group_by(DOWNLOAD.DATE, RACE) %>%
+  summarise(total=n()) %>%
+  group_by(RACE) %>%
+  summarise(avg=mean(total))
+
+gg <- ggplot(female_total, aes(x=RACE, y=avg)) + geom_bar(stat="identity") 
+gg <- gg + labs(x=NULL, y="Average", title=paste("Racial makeup of female accused pre-trial inmates"),
+                caption="SOURCE: Department of Correction\nAndrew Ba Tran/TrendCT.org")
+gg <- gg + theme_bw(base_family="Calibri")
+gg <- gg + theme(text = element_text(size=16))
+#gg <- gg + theme(panel.grid.major=element_blank())
+#gg <- gg + theme(panel.grid.minor=element_blank())
+gg <- gg + theme(panel.border=element_blank())
+#gg <- gg + theme(axis.ticks=element_blank())
+#gg <- gg + theme(axis.text.x=element_blank())
+gg <- gg + theme(plot.title=element_text(face="bold", family="Lato Black", size=22))
+gg <- gg + theme(plot.subtitle=element_text(face="italic", size=9, margin=margin(b=12)))
+gg <- gg + theme(plot.caption=element_text(size=12, margin=margin(t=10, r=80), color="#7a7d7e"))
+gg <- gg + theme(plot.margin = unit(c(1, 1, 1, 1), "lines"))
+
+gg
+```
+
+```{r males_race, fig.height=6, fig.width=9}
+male_total <- update %>%
+  filter(GENDER=="M") %>%
+  group_by(DOWNLOAD.DATE, RACE) %>%
+  summarise(total=n()) %>%
+  group_by(RACE) %>%
+  summarise(avg=mean(total))
+
+gg <- ggplot(male_total, aes(x=RACE, y=avg)) + geom_bar(stat="identity") 
+gg <- gg + labs(x=NULL, y="Average", title=paste("Racial makeup of male accused pre-trial inmates"),
+                caption="SOURCE: Department of Correction\nAndrew Ba Tran/TrendCT.org")
+gg <- gg + theme_bw(base_family="Calibri")
+gg <- gg + theme(text = element_text(size=16))
+#gg <- gg + theme(panel.grid.major=element_blank())
+#gg <- gg + theme(panel.grid.minor=element_blank())
+gg <- gg + theme(panel.border=element_blank())
+#gg <- gg + theme(axis.ticks=element_blank())
+#gg <- gg + theme(axis.text.x=element_blank())
+gg <- gg + theme(plot.title=element_text(face="bold", family="Lato Black", size=22))
+gg <- gg + theme(plot.subtitle=element_text(face="italic", size=9, margin=margin(b=12)))
+gg <- gg + theme(plot.caption=element_text(size=12, margin=margin(t=10, r=80), color="#7a7d7e"))
+gg <- gg + theme(plot.margin = unit(c(1, 1, 1, 1), "lines"))
+
+gg
+```
+
+```{r avg_age}
+
+avg_age <- update %>%
+  group_by(RACE) %>%
+  summarise(avg_age=round(mean(AGE),0), median_age=round(median(AGE),0))
+```
+
+### Average age by race
+
+```{r avg_table}
+kable(avg_age)
+```
+
+```{r facilities_total}
+facilities <- update %>%
+  group_by(DOWNLOAD.DATE, FACILITY) %>%
+  summarise(total=n()) %>%
+  group_by(FACILITY) %>%
+  summarise(average=round(mean(total),0), median=round(median(total),0)) %>%
+  arrange(-average)
+```
+
+### Average number of inmates by facility
+
+```{r facilities_table}
+kable(facilities)
+```
+
+```{r bonds_race}
+# Bond amount total by race
+
+bonds <- update %>%
+  group_by(RACE) %>%
+  summarise(avg_bond=mean(BOND.AMOUNT), median_bond=median(BOND.AMOUNT))
+```
+
+### Bond amount by race
+
+```{r bonds_table}
+kable(bonds)
+```
+
+```{r female_offense_list}
+update$offense_pre <- gsub(", .*", "", update$OFFENSE)
+update$offense_degree <- gsub(".*, ", "", update$OFFENSE)
+
+update$offense_degree <- ifelse(update$offense_pre==update$offense_degree, "", update$offense_degree)
+
+fem_offense_list <- update %>%
+  filter(GENDER=="F") %>%
+  group_by(DOWNLOAD.DATE, offense_pre) %>%
+  summarise(count=n()) %>%
+  group_by(offense_pre) %>%
+  summarise(avg=round(mean(count),0)) %>%
+  arrange(-avg) 
+```
+
+## Female offense list
+
+```{r fem_of_table}
+datatable(fem_offense_list)
+```
+
+```{r male_offense_list}
+mal_offense_list <- update %>%
+  filter(GENDER=="M") %>%
+  group_by(DOWNLOAD.DATE, offense_pre) %>%
+  summarise(count=n()) %>%
+  group_by(offense_pre) %>%
+  summarise(avg=round(mean(count),0)) %>%
+  arrange(-avg) 
+```
+
+## Male offense list
+
+```{r male_of_table}
+datatable(mal_offense_list)
+```
+
+```{r male_offense_race}
+
+mal_offense_race <- update %>%
+  filter(GENDER=="M") %>%
+  group_by(DOWNLOAD.DATE, offense_pre, RACE) %>%
+  summarise(count=n()) %>%
+  spread(RACE, count) %>%
+  group_by(offense_pre) %>%
+  summarise(amer.ind.avg=round(mean(`AMER IND`),0), asian.avg=round(mean(ASIAN),0), black.avg=round(mean(BLACK),0), hispanic.avg=round(mean(HISPANIC),0), white.avg=round(mean(WHITE),0)) %>%
+  arrange(-white.avg) 
+```
+
+## Male offense list by race
+
+```{r mor_table}
+datatable(mal_offense_race)
+```
+
+```{r female_offense_race}
+
+fem_offense_race <- update %>%
+  filter(GENDER=="F") %>%
+  group_by(DOWNLOAD.DATE, offense_pre, RACE) %>%
+  summarise(count=n()) %>%
+  spread(RACE, count) %>%
+  group_by(offense_pre) %>%
+  summarise(amer.ind.avg=round(mean(`AMER IND`),0), asian.avg=round(mean(ASIAN),0), black.avg=round(mean(BLACK),0), hispanic.avg=round(mean(HISPANIC),0), white.avg=round(mean(WHITE),0)) %>%
+  arrange(-white.avg) 
+```
+
+## Female offense list by race
+
+```{r fem_table}
+datatable(fem_offense_race)
+```
+
+```{r percent_offense_table, warning=F, message=F, fig.height=11, fig.width=9}
+
+mal_offense_race_percent <- update %>%
+  filter(GENDER=="M") %>%
+  group_by(DOWNLOAD.DATE, offense_pre, RACE) %>%
+  summarise(count=n()) %>%
+  spread(RACE, count) %>%
+  group_by(offense_pre) %>%
+  summarise(amer.ind.avg=round(mean(`AMER IND`),2), asian.avg=round(mean(ASIAN),0), black.avg=round(mean(BLACK),0), hispanic.avg=round(mean(HISPANIC),0), white.avg=round(mean(WHITE),0)) %>%
+  arrange(-white.avg) %>%
+  group_by(offense_pre) %>%
+  mutate(total=sum(amer.ind.avg,asian.avg,black.avg,hispanic.avg,white.avg, na.rm=T)) %>%
+  filter(total>20) %>%
+  arrange(-total) %>%
+  mutate(American.Indian.avg.per = round((amer.ind.avg/total)*100,0), Asian.avg.per = round(asian.avg/total*100,0),
+Black.avg.per = round(black.avg/total*100,0), Hispanic.avg.per = round(hispanic.avg/total*100,0), White.avg.per = round(white.avg/total*100,0)) %>%
+  select(offense_pre, total, American.Indian.avg.per, Asian.avg.per, Black.avg.per, Hispanic.avg.per, White.avg.per) %>%
+  gather(Race, Percent, 3:7)
+
+mal_offense_race_percent$Race <- gsub(".avg.per", "", mal_offense_race_percent$Race)
+mal_offense_race_percent$Race <- gsub("\\.", " ", mal_offense_race_percent$Race)
+
+#plotting it
+
+library(plyr)
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+Data <- mal_offense_race_percent
+Data[is.na(Data)] <- 0
+Data <- ddply(Data, .(offense_pre), transform, pos=100-(cumsum(Percent)-(0.5*Percent)))
+
+
+Data$offense_pre <- gsub(" AM", "", Data$offense_pre)
+Data$offense_pre <- gsub(" DF", "", Data$offense_pre)
+Data$offense_pre <- gsub(" AF", "", Data$offense_pre)
+Data$offense_pre <- gsub(" CF", "", Data$offense_pre)
+Data$offense_pre <- gsub("  F", "", Data$offense_pre)
+Data$offense_pre <- str_trim(Data$offense_pre)
+
+Data[Data == 0] <- NA
+Data <- Data[ order(-Data$total), ]
+
+Data$offense_pre <- factor(Data$offense_pre, levels = Data$offense_pre[order(Data$total)])
+
+#Data$Race <- factor(Data$Race)
+
+
+#Data$Race <- factor(Data$Race,levels(Data$Race)[c(6,5,4,3,2,1)])
+
+
+gg <- ggplot(Data, aes(x = offense_pre, y = Percent)) 
+gg <- gg + geom_bar(aes(fill = Race, order=-as.numeric(Race)), stat="identity") 
+gg <- gg + geom_text(aes(label = Percent, y = pos), size = 4) 
+gg <- gg + scale_fill_manual(values=cbPalette)
+gg <- gg + coord_flip() 
+gg <- gg + geom_rect(data=Data, aes(ymin=102, ymax=114, xmin=-Inf, xmax=Inf), fill="#efefe3")
+gg <- gg + geom_text(data=Data, aes(label=round(total,0), x=offense_pre, y=108), fontface="bold", size=4, family="Calibri")
+gg <- gg + labs(x=NULL, y="Percent", title="Offenses that accused pre-trial inmates face by race",
+                subtitle="Percent of race and total facing offenses. Based on rolling average of inmates per day.",
+                caption="Department of Correction\nAndrew Ba Tran/TrendCT.org")
+gg <- gg + theme_bw(base_family="Calibri")
+gg <- gg + theme(panel.grid.major=element_blank())
+gg <- gg + theme(panel.grid.minor=element_blank())
+gg <- gg + theme(panel.border=element_blank())
+gg <- gg + theme(axis.ticks=element_blank())
+gg <- gg + theme(axis.text.x=element_blank())
+#gg <- gg + theme(text = element_text(size=20))
+gg <- gg + theme(plot.title=element_text(face="bold", family="Lato Black", size=16))
+gg <- gg + theme(plot.subtitle=element_text(face="italic", size=10,margin=margin(b=12)))
+gg <- gg + theme(plot.caption=element_text(size=10, margin=margin(t=16), color="#7a7d7e"))
+gg
+```
+
+
+```{r bond_avg_race, warning=F, message=F}
+detach("package:plyr", unload=TRUE)
+
+mal_offense_race_bond <- update %>%
+  filter(GENDER=="M") %>%
+  group_by(DOWNLOAD.DATE, OFFENSE, RACE) %>%
+  summarise(total=n(),avg.bond=mean(BOND.AMOUNT)) %>%
+  select(DOWNLOAD.DATE, OFFENSE, total, RACE, avg.bond) %>%
+  spread(RACE, avg.bond) %>%
+  group_by(OFFENSE) %>%
+  summarise(total = sum(total), amer.ind.avg=round(mean(`AMER IND`, na.rm=T),2), asian.avg=round(mean(ASIAN, na.rm=T),0), black.avg=round(mean(BLACK, na.rm=T),0), hispanic.avg=round(mean(HISPANIC, na.rm=T),0), white.avg=round(mean(WHITE, na.rm=T),0)) %>%
+  arrange(-white.avg) %>%
+  filter(total>20)
+
+mal_offense_race_bond$what <- ifelse(((mal_offense_race_bond$white.avg < mal_offense_race_bond$black.avg) & (mal_offense_race_bond$white.avg < mal_offense_race_bond$hispanic.avg)), "white", "minority")
+
+```
+
+## Bond amount
+
+```{r bond_amount_table}
+datatable(mal_offense_race_bond)
+```
+
+
+```{r time_in_jail}
+
+days_list <- unique(update$DOWNLOAD.DATE)
+update$auth.date <- mdy(update$DOWNLOAD.DATE)
+update$first.date <- ifelse(mdy(update$LATEST.ADMISSION.DATE)>mdy("07/01/2016"), as.character(mdy(update$LATEST.ADMISSION.DATE)), as.character(mdy("07/01/2016"))) 
+update$last.date <- ""
+
+#3427
+
+for (i in 2:length(days_list)) {
+  date <- days_list[i-1]
+  update_sub <- subset(update, DOWNLOAD.DATE==date)
+  update_sub_solo <- update_sub[c("DOWNLOAD.DATE", "IDENTIFIER", "first.date")]
+  
+  date2 <- days_list[i]
+  update_sub2 <- subset(update, DOWNLOAD.DATE==date2)
+  update_sub_solo2 <- update_sub2[c("DOWNLOAD.DATE", "IDENTIFIER", "first.date")]
+  update_sub_combined <- full_join(update_sub_solo, update_sub_solo2, by="IDENTIFIER")
+
+  update_sub_combined$first.date <- ifelse(is.na(update_sub_combined$DOWNLOAD.DATE.x), as.character(mdy(as.character(update_sub_combined$DOWNLOAD.DATE.y))), as.character(ymd(update_sub_combined$first.date.x)))
+  update_sub_combined$last.date <- ifelse(is.na(update_sub_combined$DOWNLOAD.DATE.y), as.character(mdy(as.character(update_sub_combined$DOWNLOAD.DATE.x))), "")
+  
+  update_sub_combined <- update_sub_combined[c("IDENTIFIER","first.date","last.date")]
+  
+  if (i == 2) {
+    update_all <- update_sub_combined
+  } else {
+    update_all <- rbind(update_all, update_sub_combined)
+  }
+  update_all_complete <- update_all[!duplicated(update_all), ]
+  
+}
+
+dupes <- update_all_complete[duplicated(update_all_complete$IDENTIFIER),]
+dupes$dupe <- "duplicate"
+dupes <- dupes[c("IDENTIFIER", "dupe")]
+
+update_all_complete <- left_join(update_all_complete, dupes)
+
+duped <- subset(update_all_complete, dupe=="duplicate")
+duped <- arrange(duped, IDENTIFIER)
+
+for (i in 1:nrow(duped)) {
+  if ((duped$IDENTIFIER[i]== duped$IDENTIFIER[i+1]) & (i !=nrow(duped))) {
+    
+    if (duped$first.date[i] == duped$first.date[i+1]) {
+      duped$last.date[i] <- ifelse(duped$last.date[i]=="", duped$last.date[i+1], duped$last.date[i])
+      duped$last.date[i+1] <- ifelse(duped$last.date[i]=="", duped$last.date[i+1], duped$last.date[i])
+      
+    }
+    
+    if (duped$first.date[i] > duped$first.date[i+1]) {
+      duped$first.date[i] <- duped$first.date[i+1]
+    }
+    
+    if (duped$first.date[i] < duped$first.date[i+1]) {
+      duped$first.date[i + 1] <- duped$first.date[i]
+    }
+    
+  }
+  
+}
+
+duped <- unique(duped)
+
+update_all_complete_final <- subset(update_all_complete, is.na(dupe))
+update_all_complete_final <- rbind(update_all_complete_final, duped)
+
+update$auth.date <- NULL
+update$first.date <- NULL
+update$last.date <- NULL
+
+update <- left_join(update, update_all_complete_final, by="IDENTIFIER")
+update$dupe <- NULL
+update$first.date[update$first.date == "2016-07-01"] <- NA
+update$total.days <- ymd(update$last.date) - ymd(update$first.date)
+
+write.csv(table(update$total.days, update$RACE), "race_days.csv")
+```
+
+## Median days spent in jail (of those who came and left between July 1 and today
+
+```{r time_table}
+median_d <- update %>%
+  group_by(RACE) %>%
+  summarise(Days=median(total.days, na.rm=T))
+
+kable(median_d)
+```
+
+```{r avg_time_table}
+avg_d <- update %>%
+  group_by(RACE) %>%
+  summarise(Days=mean(total.days, na.rm=T))
+kable(median_d)
+
+out <- subset(update, !is.na(total.days))
+still_in <- subset(update, is.na(total.days))
+out_yet <- subset(still_in, last.date=="")
+still_in <- subset(still_in, last.date!="")
+
+
+out2 <- count(out[unique(out$IDENTIFIER),])
+out_yet2 <- count(out_yet[unique(out_yet$IDENTIFIER),])
+still_in2 <- count(still_in[unique(still_in$IDENTIFIER),])
+```
+
+## Inmate turnover
+
+Pre-trial inmates who arrived before July 1 and has since left jail
+* `r out_yet2`
+
+Pre-trial inmates who arrived after July 1 and has since left jail
+* `r out2`
+
+Pre-trial inmates who are still in jail
+* `r still_in2`
+
+-----
+
+## Inmates still in jail by race
+
+```{r total_inmates1}
+total_inmates <- length(unique(update$IDENTIFIER))
+
+
+still_in_t <- still_in[unique(still_in$IDENTIFIER),] %>%
+  group_by(RACE) %>%
+  summarise(count=n())
+
+kable(still_in_t)
+```
+
+## Inmates still who came in to jail and have left
+
+```{r in_out}
+
+out_t <- out[unique(out$IDENTIFIER),] %>%
+  group_by(RACE) %>%
+  summarise(count=n())
+
+kable(out_t)
+
+```
+
+## Inmates who came in before July 1 and have since left
+
+```{r out_yet}
+out_yet_t <- out_yet[unique(out_yet$IDENTIFIER),] %>%
+  group_by(RACE) %>%
+  summarise(count=n())
+
+kable(out_yet_t)
+```

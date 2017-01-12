@@ -1,0 +1,193 @@
+---
+title: "analysis 2"
+author: "Andrew Ba Tran"
+date: "January 11, 2017"
+output: html_document
+---
+
+```{r setup, fig.width=9, fig.height=8}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(lubridate)
+library(knitr)
+library(ggalt)
+library(extrafont)
+library(grid)
+library(gridExtra)
+library(stringr)
+library(DT)
+
+update <- read.csv("https://data.ct.gov/api/views/b674-jy6w/rows.csv")
+
+update$DOWNLOAD.DATE <- mdy(update$DOWNLOAD.DATE)
+
+last_date <- as.character(max(update$DOWNLOAD.DATE))
+
+pretrial <- update %>%
+  group_by(IDENTIFIER, OFFENSE) %>%
+  mutate(max_bail=max(BOND.AMOUNT), min_bail=min(BOND.AMOUNT), earliest=min(DOWNLOAD.DATE), earliest2= mdy(LATEST.ADMISSION.DATE), latest=max(DOWNLOAD.DATE)) %>%
+  filter(earliest2 > "2015-07-01")
+
+
+pretrial$latest <- as.character(pretrial$latest)
+
+pretrial$latest <- ifelse(pretrial$latest==last_date, NA, pretrial$latest)
+pretrial$latest <- ymd(pretrial$latest)
+
+pretrial$duration1 <- pretrial$latest - pretrial$earliest
+pretrial$duration2 <-  pretrial$latest - pretrial$earliest2
+pretrial$for_filter <- paste0(pretrial$IDENTIFIER, pretrial$OFFENSE)
+pretrial_filtered <- pretrial[!duplicated(pretrial$for_filter),]
+
+pretrial_filtered$prior <- ifelse(pretrial_filtered$earliest=="2016-07-01", "in prior to July 1", "in after July 1")
+pretrial_filtered$current <- ifelse(is.na(pretrial_filtered$latest), "still in", "out")
+
+pretrial_filtered$quantile <- 0
+pretrial_filtered$quantile <- ifelse(pretrial_filtered$BOND.AMOUNT <= 10000, 1, pretrial_filtered$quantile)
+pretrial_filtered$quantile <- ifelse(pretrial_filtered$BOND.AMOUNT > 10000 & pretrial_filtered$BOND.AMOUNT <= 35000, 2, pretrial_filtered$quantile)
+pretrial_filtered$quantile <- ifelse(pretrial_filtered$BOND.AMOUNT > 35000 & pretrial_filtered$BOND.AMOUNT <= 100000, 3, pretrial_filtered$quantile)
+pretrial_filtered$quantile <- ifelse(pretrial_filtered$BOND.AMOUNT > 100000, 4, pretrial_filtered$quantile)
+
+gg <- ggplot()
+gg <- gg + geom_point(data=pretrial_filtered, aes(BOND.AMOUNT, duration2, color=RACE))
+#gg <- gg + geom_point(data=pretrial_filtered, aes(BOND.AMOUNT, duration1, color=RACE, size=quantile))
+
+gg <- gg + scale_color_manual(values= c("#8dd3c7", "#ffffb3", "#bebada", "#fb8072", "#80b1d3"))
+gg <- gg + facet_wrap(~RACE)
+#gg <- gg + scale_x_continuous(limits = c(0, 110))
+#gg <- gg + scale_y_continuous(limits = c(0, 110))
+gg <- gg + labs(x="Bond amount", y="Duration", 
+                title="Bond amount compared to duration of stay in pre-trial jail",
+                subtitle="Size of circles indicate quantile of bonds.",
+                caption="Source: Corrections Department\nAndrew Ba Tran/TrendCT.org")
+gg <- gg + theme_bw(base_family="Lato Regular")
+gg <- gg + theme(axis.ticks.y=element_blank())
+#gg <- gg + theme(panel.border=element_blank())
+gg <- gg + theme(legend.key=element_blank())
+gg <- gg + theme(plot.title=element_text(face="bold", family="Lato Regular", size=18))
+gg <- gg + theme(plot.subtitle=element_text(family="Lato Regular", size=9))
+gg <- gg + theme(plot.caption=element_text(family="Lato Regular", size=8, color="gray", margin=margin(t=10, r=80)))
+gg <- gg + theme(axis.text.x = element_text(family="Lato Regular", size=12))
+gg <- gg + theme(legend.position="none")
+gg <- gg + theme(strip.background=element_blank())
+
+print(gg)
+
+## Quantile 1
+
+q1 <- subset(pretrial_filtered, quantile==1)
+
+gg <- ggplot()
+gg <- gg + geom_point(data=q1, aes(BOND.AMOUNT, duration2, color=RACE))
+#gg <- gg + geom_point(data=pretrial_filtered, aes(BOND.AMOUNT, duration1, color=RACE, size=quantile))
+
+gg <- gg + scale_color_manual(values= c("#8dd3c7", "#ffffb3", "#bebada", "#fb8072", "#80b1d3"))
+gg <- gg + facet_wrap(~RACE)
+#gg <- gg + scale_x_continuous(limits = c(0, 110))
+#gg <- gg + scale_y_continuous(limits = c(0, 110))
+gg <- gg + labs(x="Bond amount", y="Duration", 
+                title="Bond amount compared to duration of stay in pre-trial jail",
+                subtitle="Quantile 1",
+                caption="Source: Corrections Department\nAndrew Ba Tran/TrendCT.org")
+gg <- gg + theme_bw(base_family="Lato Regular")
+gg <- gg + theme(axis.ticks.y=element_blank())
+#gg <- gg + theme(panel.border=element_blank())
+gg <- gg + theme(legend.key=element_blank())
+gg <- gg + theme(plot.title=element_text(face="bold", family="Lato Regular", size=18))
+gg <- gg + theme(plot.subtitle=element_text(family="Lato Regular", size=9))
+gg <- gg + theme(plot.caption=element_text(family="Lato Regular", size=8, color="gray", margin=margin(t=10, r=80)))
+gg <- gg + theme(axis.text.x = element_text(family="Lato Regular", size=12))
+gg <- gg + theme(legend.position="none")
+gg <- gg + theme(strip.background=element_blank())
+
+print(gg)
+
+
+## Quantile 2
+
+q2 <- subset(pretrial_filtered, quantile==2)
+
+gg <- ggplot()
+gg <- gg + geom_point(data=q2, aes(BOND.AMOUNT, duration2, color=RACE))
+#gg <- gg + geom_point(data=pretrial_filtered, aes(BOND.AMOUNT, duration1, color=RACE, size=quantile))
+
+gg <- gg + scale_color_manual(values= c("#8dd3c7", "#ffffb3", "#bebada", "#fb8072", "#80b1d3"))
+gg <- gg + facet_wrap(~RACE)
+#gg <- gg + scale_x_continuous(limits = c(0, 110))
+#gg <- gg + scale_y_continuous(limits = c(0, 110))
+gg <- gg + labs(x="Bond amount", y="Duration", 
+                title="Bond amount compared to duration of stay in pre-trial jail",
+                subtitle="Quantile 2",
+                caption="Source: Corrections Department\nAndrew Ba Tran/TrendCT.org")
+gg <- gg + theme_bw(base_family="Lato Regular")
+gg <- gg + theme(axis.ticks.y=element_blank())
+#gg <- gg + theme(panel.border=element_blank())
+gg <- gg + theme(legend.key=element_blank())
+gg <- gg + theme(plot.title=element_text(face="bold", family="Lato Regular", size=18))
+gg <- gg + theme(plot.subtitle=element_text(family="Lato Regular", size=9))
+gg <- gg + theme(plot.caption=element_text(family="Lato Regular", size=8, color="gray", margin=margin(t=10, r=80)))
+gg <- gg + theme(axis.text.x = element_text(family="Lato Regular", size=12))
+gg <- gg + theme(legend.position="none")
+gg <- gg + theme(strip.background=element_blank())
+
+print(gg)
+
+## Quantile 1
+
+q3 <- subset(pretrial_filtered, quantile==3)
+
+gg <- ggplot()
+gg <- gg + geom_point(data=q3, aes(BOND.AMOUNT, duration2, color=RACE))
+#gg <- gg + geom_point(data=pretrial_filtered, aes(BOND.AMOUNT, duration1, color=RACE, size=quantile))
+
+gg <- gg + scale_color_manual(values= c("#8dd3c7", "#ffffb3", "#bebada", "#fb8072", "#80b1d3"))
+gg <- gg + facet_wrap(~RACE)
+#gg <- gg + scale_x_continuous(limits = c(0, 110))
+#gg <- gg + scale_y_continuous(limits = c(0, 110))
+gg <- gg + labs(x="Bond amount", y="Duration", 
+                title="Bond amount compared to duration of stay in pre-trial jail",
+                subtitle="Quantile 3",
+                caption="Source: Corrections Department\nAndrew Ba Tran/TrendCT.org")
+gg <- gg + theme_bw(base_family="Lato Regular")
+gg <- gg + theme(axis.ticks.y=element_blank())
+#gg <- gg + theme(panel.border=element_blank())
+gg <- gg + theme(legend.key=element_blank())
+gg <- gg + theme(plot.title=element_text(face="bold", family="Lato Regular", size=18))
+gg <- gg + theme(plot.subtitle=element_text(family="Lato Regular", size=9))
+gg <- gg + theme(plot.caption=element_text(family="Lato Regular", size=8, color="gray", margin=margin(t=10, r=80)))
+gg <- gg + theme(axis.text.x = element_text(family="Lato Regular", size=12))
+gg <- gg + theme(legend.position="none")
+gg <- gg + theme(strip.background=element_blank())
+
+print(gg)
+
+## Quantile 1
+
+q4 <- subset(pretrial_filtered, quantile==4)
+
+gg <- ggplot()
+gg <- gg + geom_point(data=q4, aes(BOND.AMOUNT, duration2, color=RACE))
+#gg <- gg + geom_point(data=pretrial_filtered, aes(BOND.AMOUNT, duration1, color=RACE, size=quantile))
+
+gg <- gg + scale_color_manual(values= c("#8dd3c7", "#ffffb3", "#bebada", "#fb8072", "#80b1d3"))
+gg <- gg + facet_wrap(~RACE)
+#gg <- gg + scale_x_continuous(limits = c(0, 110))
+#gg <- gg + scale_y_continuous(limits = c(0, 110))
+gg <- gg + labs(x="Bond amount", y="Duration", 
+                title="Bond amount compared to duration of stay in pre-trial jail",
+                subtitle="Quantile 4",
+                caption="Source: Corrections Department\nAndrew Ba Tran/TrendCT.org")
+gg <- gg + theme_bw(base_family="Lato Regular")
+gg <- gg + theme(axis.ticks.y=element_blank())
+#gg <- gg + theme(panel.border=element_blank())
+gg <- gg + theme(legend.key=element_blank())
+gg <- gg + theme(plot.title=element_text(face="bold", family="Lato Regular", size=18))
+gg <- gg + theme(plot.subtitle=element_text(family="Lato Regular", size=9))
+gg <- gg + theme(plot.caption=element_text(family="Lato Regular", size=8, color="gray", margin=margin(t=10, r=80)))
+gg <- gg + theme(axis.text.x = element_text(family="Lato Regular", size=12))
+gg <- gg + theme(legend.position="none")
+gg <- gg + theme(strip.background=element_blank())
+
+print(gg)
+```
